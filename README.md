@@ -141,6 +141,12 @@ python uno/utils/filter_uno_1m_dataset.py ./datasets/UNO-1M/uno_1m_total_labels.
 accelerate launch train.py --train_data_json ./datasets/UNO-1M/uno_1m_total_labels_convert.json
 ```
 
+#### 训练过程简介
+- **数据集格式**：训练使用 JSON 列表，每条样本包含 `prompt`、`image_tgt_path`（目标图像路径）以及 `image_paths`（参考图像路径数组）。`filter_uno_1m_dataset.py` 会将 UNO-1M 的原始标注转为该格式。
+- **数据处理流程**：`FluxPairedDatasetV2` 加载图像与文本后进行比例桶化（bucket）与缩放，随后执行 `ToTensor` + `Normalize([0.5], [0.5])`；图像被编码进 VAE 潜空间，文本由 T5 与 CLIP 编码并在训练中冻结。
+- **损失函数计算**：训练目标是噪声预测，模型输出噪声残差与采样噪声之间采用 **MSE Loss** 进行监督。
+- **数据流**：JSON 样本 → 数据集读取/桶化 → 归一化 → VAE 编码 → 文本编码 → DIT 前向 → 噪声预测 → MSE Loss → 反向传播（LoRA 可训练层）。
+
 
 ### 📌 Tips and Notes
 We integrate single-subject and multi-subject generation within a unified model. For single-subject scenarios, the longest side of the reference image is set to 512 by default, while for multi-subject scenarios, it is set to 320. UNO demonstrates remarkable flexibility across various aspect ratios, thanks to its training on a multi-scale dataset. Despite being trained within 512 buckets, it can handle higher resolutions, including 512, 568, and 704, among others.
